@@ -1,0 +1,12 @@
+*.so
+*.pyc
+*.tgz
+*.ckpt.data-00000-of-00001
+output
+tensorboard
+lib/build
+lib/pycocotools
+lib/pycocotools/_mask.c
+lib/pycocotools/_mask.so
+.idea
+
