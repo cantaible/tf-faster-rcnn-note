@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 # --------------------------------------------------------
 # Tensorflow Faster R-CNN
 # Licensed under The MIT License [see LICENSE for details]
@@ -23,6 +25,7 @@ def resnet_arg_scope(is_training=True,
                      batch_norm_decay=0.997,
                      batch_norm_epsilon=1e-5,
                      batch_norm_scale=True):
+    # resnet参数范围
   batch_norm_params = {
     'is_training': False,
     'decay': batch_norm_decay,
@@ -31,6 +34,8 @@ def resnet_arg_scope(is_training=True,
     'trainable': False,
     'updates_collections': tf.GraphKeys.UPDATE_OPS
   }
+    # decay衰减
+    # epsilon
 
   with arg_scope(
       [slim.conv2d],
@@ -126,6 +131,10 @@ class resnetv1(Network):
 
   def _decide_blocks(self):
     # choose different blocks for different number of layers
+    '''
+    为不同的层数选择不同的blocks
+    :return:
+    '''
     if self._num_layers == 50:
       self._blocks = [resnet_v1_block('block1', base_depth=64, num_units=3, stride=2),
                       resnet_v1_block('block2', base_depth=128, num_units=4, stride=2),

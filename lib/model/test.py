@@ -106,6 +106,7 @@ def _rescale_boxes(boxes, inds, scales):
   return boxes
 
 def im_detect(sess, net, im):
+  '''运行测试网络，返回scores，并得到bbox的四个顶点坐标'''
   #
   blobs, im_scales = _get_blobs(im)
   # 将图像缩放，转换成四维数组
@@ -121,14 +122,17 @@ def im_detect(sess, net, im):
   # bbox_pred维度(300,5),
   boxes = rois[:, 1:5] / im_scales[0]
   # 把缩放后的尺寸还原到原尺寸
-  # 选取rois每列的第2到第5共四个元素
+  # 选取rois每列的第2到第5共四个元素,region of interest
   scores = np.reshape(scores, [scores.shape[0], -1])
   bbox_pred = np.reshape(bbox_pred, [bbox_pred.shape[0], -1])
   if cfg.TEST.BBOX_REG:
+    # 暂时还不太懂
     # Apply bounding-box regression deltas
     box_deltas = bbox_pred
     pred_boxes = bbox_transform_inv(boxes, box_deltas)
+    # 得到bbox四个点点的坐标
     pred_boxes = _clip_boxes(pred_boxes, im.shape)
+    # 裁剪bbox到图像范围以内
   else:
     # Simply repeat the boxes, once for each class
     pred_boxes = np.tile(boxes, (1, scores.shape[1]))

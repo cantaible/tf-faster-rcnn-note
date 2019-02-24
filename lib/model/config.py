@@ -9,6 +9,7 @@ import os.path as osp
 import numpy as np
 # `pip install easydict` if you don't have it
 from easydict import EasyDict as edict
+# EasyDict可以让你像访问属性一样访问dict里的变量。
 
 __C = edict()
 # Consumers can get config by:

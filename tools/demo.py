@@ -103,22 +103,29 @@ def demo(sess, net, image_name):
     # 开始计时
     scores, boxes = im_detect(sess, net, im)
     # im_detect在test文件里
+    # 运行测试网络，得到scores和bbox四个顶点坐标
     timer.toc()
     # 结束计时
     print('Detection took {:.3f}s for {:d} object proposals'.format(timer.total_time, boxes.shape[0]))
 
     # Visualize detections for each class
     CONF_THRESH = 0.8
+    # 分类精度阈值
     NMS_THRESH = 0.3
     for cls_ind, cls in enumerate(CLASSES[1:]):
-        cls_ind += 1 # because we skipped background
+        cls_ind += 1 # because we skipped background跳过背景
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
+        #获得cls_ind对应的bbox边框顶点（300,4）
         cls_scores = scores[:, cls_ind]
+        # （300，）
         dets = np.hstack((cls_boxes,
                           cls_scores[:, np.newaxis])).astype(np.float32)
+        # 水平方向上拼接数组
         keep = nms(dets, NMS_THRESH)
+        # 没太看懂这个函数是干什么的
         dets = dets[keep, :]
         vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        # 画bounding box
 
 def parse_args():
     """Parse input arguments."""

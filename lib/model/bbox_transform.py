@@ -34,26 +34,36 @@ def bbox_transform(ex_rois, gt_rois):
 
 
 def bbox_transform_inv(boxes, deltas):
+  '''
+  计算得到bbox四个顶点坐标
+  :param boxes:(300,4)确定bounding box的四个参数
+  :param deltas:(300,84)
+  :return:
+  '''
   if boxes.shape[0] == 0:
     return np.zeros((0, deltas.shape[1]), dtype=deltas.dtype)
 
   boxes = boxes.astype(deltas.dtype, copy=False)
+  # 转换成deltas的类型
   widths = boxes[:, 2] - boxes[:, 0] + 1.0
   heights = boxes[:, 3] - boxes[:, 1] + 1.0
   ctr_x = boxes[:, 0] + 0.5 * widths
   ctr_y = boxes[:, 1] + 0.5 * heights
+  # 确定bbox的中心
 
   dx = deltas[:, 0::4]
   dy = deltas[:, 1::4]
   dw = deltas[:, 2::4]
   dh = deltas[:, 3::4]
-  
-  pred_ctr_x = dx * widths[:, np.newaxis] + ctr_x[:, np.newaxis]
-  pred_ctr_y = dy * heights[:, np.newaxis] + ctr_y[:, np.newaxis]
+  # n::4每隔4个取一个，取每组的第（n+1）个，size=(300*21)
+  pred_ctr_x = dx * widths[:, np.newaxis] + ctr_x[:, np.newaxis]#bbox中心x
+  pred_ctr_y = dy * heights[:, np.newaxis] + ctr_y[:, np.newaxis]#bbox中心y
   pred_w = np.exp(dw) * widths[:, np.newaxis]
   pred_h = np.exp(dh) * heights[:, np.newaxis]
+  # 把bbox相对的值dx等转换为绝对值
 
   pred_boxes = np.zeros(deltas.shape, dtype=deltas.dtype)
+  # 得到bbox四个顶点坐标值
   # x1
   pred_boxes[:, 0::4] = pred_ctr_x - 0.5 * pred_w
   # y1

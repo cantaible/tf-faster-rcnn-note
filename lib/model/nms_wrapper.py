@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 # --------------------------------------------------------
 # Fast R-CNN
 # Copyright (c) 2015 Microsoft
@@ -13,7 +15,10 @@ from model.config import cfg
 from nms.cpu_nms import cpu_nms
 
 def nms(dets, thresh, force_cpu=False):
-  """Dispatch to either CPU or GPU NMS implementations."""
+  """
+  Dispatch to either CPU or GPU NMS implementations.
+  调度到CPU或GPU NMS实现。
+  """
 
   if dets.shape[0] == 0:
     return []
