@@ -1,3 +1,8 @@
+# -*- coding:utf-8 -*-
+
+
+
+
 # --------------------------------------------------------
 # Tensorflow Faster R-CNN
 # Licensed under The MIT License [see LICENSE for details]
@@ -103,6 +108,7 @@ if __name__ == '__main__':
     raise NotImplementedError
 
   # load model
+  # imdb是一个类，对所有图片名称，路径，类别等相关信息做了一个汇总
   net.create_architecture("TEST", imdb.num_classes, tag='default',
                           anchor_scales=cfg.ANCHOR_SCALES,
                           anchor_ratios=cfg.ANCHOR_RATIOS)

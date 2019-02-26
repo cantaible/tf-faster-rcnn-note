@@ -235,7 +235,11 @@ class Network(object):
 
   def _build_network(self, is_training=True):
     # select initializers
+    # 里面包含了_region_proposal,_crop_pool_layer,_reigon_classification
+    # 三个主要的方法，分别表示了方法最主要的流程走向，生成推荐区域，crop，再判定
     if cfg.TRAIN.TRUNCATED:
+      # 从截断的正态分布中获取随机值
+      # 从具有指定平均值和标准偏差的正态分布，如果生成的值大于平均值2个标准偏差的值则丢弃重新选择。
       initializer = tf.truncated_normal_initializer(mean=0.0, stddev=0.01)
       initializer_bbox = tf.truncated_normal_initializer(mean=0.0, stddev=0.001)
     else:
@@ -388,40 +392,62 @@ class Network(object):
 
   def create_architecture(self, mode, num_classes, tag=None,
                           anchor_scales=(8, 16, 32), anchor_ratios=(0.5, 1, 2)):
+    '''
+    最顶级方法，除了创建网络，还包含add_loss,update_loss,初始化参数，记录summary的操作
+
+    :param mode:
+    :param num_classes: 类别数量
+    :param tag:
+    :param anchor_scales:
+    :param anchor_ratios:
+    :return:
+    '''
     self._image = tf.placeholder(tf.float32, shape=[1, None, None, 3])
+    # none表示尺寸不定，输入的图片
+    # tf.placeholder(dtype,shape=None,name=None)
     self._im_info = tf.placeholder(tf.float32, shape=[3])
+    #
     self._gt_boxes = tf.placeholder(tf.float32, shape=[None, 5])
     self._tag = tag
 
     self._num_classes = num_classes
     self._mode = mode
+    # 貌似是指模式是训练还是测试
     self._anchor_scales = anchor_scales
+    # 缩放
     self._num_scales = len(anchor_scales)
-
+    # 选择的缩放的数量
     self._anchor_ratios = anchor_ratios
+    # 纵横比
     self._num_ratios = len(anchor_ratios)
-
+    # 选择的纵横比的数量
     self._num_anchors = self._num_scales * self._num_ratios
-
+    # anchor的数量
     training = mode == 'TRAIN'
+    # bool
     testing = mode == 'TEST'
 
     assert tag != None
 
     # handle most of the regularizers here
+    # 在这里处理大多数的正则化
     weights_regularizer = tf.contrib.layers.l2_regularizer(cfg.TRAIN.WEIGHT_DECAY)
+    # 计算l2正则化，权重是cfg.TRAIN.WEIGHT_DECAY(0.0001)
     if cfg.TRAIN.BIAS_DECAY:
       biases_regularizer = weights_regularizer
     else:
       biases_regularizer = tf.no_regularizer
-
+    # 偏置一般不进行正则化，因为它不会随着NN的训练而互动的调整，也就是求梯度的时候不会进行梯度更新。并且偏置b相对于w数量很少。
     # list as many types of layers as possible, even if they are not used now
     with arg_scope([slim.conv2d, slim.conv2d_in_plane, \
                     slim.conv2d_transpose, slim.separable_conv2d, slim.fully_connected], 
                     weights_regularizer=weights_regularizer,
                     biases_regularizer=biases_regularizer, 
-                    biases_initializer=tf.constant_initializer(0.0)): 
+                    biases_initializer=tf.constant_initializer(0.0)):
+      # arg_scope为括号里面的变量存储默认的参数，红字据说给定的默认参数
       rois, cls_prob, bbox_pred = self._build_network(training)
+      # 里面包含了_region_proposal,_crop_pool_layer,_reigon_classification
+      # 三个主要的方法，分别表示了方法最主要的流程走向，生成推荐区域，crop，再判定
 
     layers_to_output = {'rois': rois}
 

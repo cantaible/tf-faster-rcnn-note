@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 # --------------------------------------------------------
 # Fast R-CNN
 # Copyright (c) 2015 Microsoft
@@ -30,12 +32,16 @@ class RoIDataLayer(object):
     self._shuffle_roidb_inds()
 
   def _shuffle_roidb_inds(self):
-    """Randomly permute the training roidb."""
+    """Randomly permute the training roidb.
+       随机排列训练的roidb
+    """
     # If the random flag is set, 
     # then the database is shuffled according to system time
     # Useful for the validation set
+    # 如果已经设定了随机标志位，然后根据系统时间对数据库进行洗牌，对验证集有用
     if self._random:
       st0 = np.random.get_state()
+      # 设定状态，记录下数组被打乱的操作
       millis = int(round(time.time() * 1000)) % 4294967295
       np.random.seed(millis)
     

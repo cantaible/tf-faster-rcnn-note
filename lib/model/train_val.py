@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 # --------------------------------------------------------
 # Tensorflow Faster R-CNN
 # Licensed under The MIT License [see LICENSE for details]
@@ -27,6 +29,7 @@ from tensorflow.python import pywrap_tensorflow
 class SolverWrapper(object):
   """
     A wrapper class for the training process
+    训练过程的包装类
   """
 
   def __init__(self, sess, network, imdb, roidb, valroidb, output_dir, tbdir, pretrained_model=None):
@@ -49,6 +52,7 @@ class SolverWrapper(object):
       os.makedirs(self.output_dir)
 
     # Store the model snapshot
+    # 存储模型快照，ckpt
     filename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(iter) + '.ckpt'
     filename = os.path.join(self.output_dir, filename)
     self.saver.save(sess, filename)
@@ -59,6 +63,7 @@ class SolverWrapper(object):
     nfilename = os.path.join(self.output_dir, nfilename)
     # current state of numpy random
     st0 = np.random.get_state()
+    # 记录下数组被打乱的操作
     # current position in the database
     cur = self.data_layer._cur
     # current shuffled indexes of the database
@@ -241,6 +246,7 @@ class SolverWrapper(object):
 
   def train_model(self, sess, max_iters):
     # Build data layers for both training and validation set
+    # 为培训和验证集构建数据层
     self.data_layer = RoIDataLayer(self.roidb, self.imdb.num_classes)
     self.data_layer_val = RoIDataLayer(self.valroidb, self.imdb.num_classes, random=True)
 
