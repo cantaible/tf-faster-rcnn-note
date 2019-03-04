@@ -72,18 +72,23 @@ class Network(object):
     input_shape = tf.shape(bottom)
     with tf.variable_scope(name) as scope:
       # change the channel to the caffe format
+      #
       to_caffe = tf.transpose(bottom, [0, 3, 1, 2])
       # then force it to have channel 2
+      # just_a_test=tf.concat(axis=0, values=[[1, num_dim, -1], [input_shape[2]]])
       reshaped = tf.reshape(to_caffe,
                             tf.concat(axis=0, values=[[1, num_dim, -1], [input_shape[2]]]))
+      # tf.concat连接两个矩阵,axis=0：列数不变行数增加，values=[[1, 2, -1], [input_shape[2]]]
       # then swap the channel back
       to_tf = tf.transpose(reshaped, [0, 2, 3, 1])
       return to_tf
 
   def _softmax_layer(self, bottom, name):
     if name.startswith('rpn_cls_prob_reshape'):
+      # startswith检查字符是否以指定字符开头
       input_shape = tf.shape(bottom)
       bottom_reshaped = tf.reshape(bottom, [-1, input_shape[-1]])
+      # [-1, input_shape[-1]]第一个-1是缺省值，自适应，第二个是取最后一个值
       reshaped_score = tf.nn.softmax(bottom_reshaped, name=name)
       return tf.reshape(reshaped_score, input_shape)
     return tf.nn.softmax(bottom, name=name)
@@ -129,6 +134,7 @@ class Network(object):
                               [tf.float32, tf.float32], name="proposal")
 
       rois.set_shape([None, 5])
+      # 改变图的shape
       rpn_scores.set_shape([None, 1])
 
     return rois, rpn_scores
@@ -169,6 +175,8 @@ class Network(object):
         [rpn_cls_score, self._gt_boxes, self._im_info, self._feat_stride, self._anchors, self._num_anchors],
         [tf.float32, tf.float32, tf.float32, tf.float32],
         name="anchor_target")
+      # 接受numpy array作为输入，返回numpy array类型的输出，anchor_target_layer
+
 
       rpn_labels.set_shape([1, 1, None, None])
       rpn_bbox_targets.set_shape([1, None, None, self._num_anchors * 4])
@@ -211,10 +219,17 @@ class Network(object):
       return rois, roi_scores
 
   def _anchor_component(self):
+    '''
+    为图片建立anchor
+    :return:
+    '''
     with tf.variable_scope('ANCHOR_' + self._tag) as scope:
       # just to get the shape right
       height = tf.to_int32(tf.ceil(self._im_info[0] / np.float32(self._feat_stride[0])))
+      # ceil返回不下于x的最小整数
+      # self._im_info[0]图片的height，self._feat_stride[0]=16
       width = tf.to_int32(tf.ceil(self._im_info[1] / np.float32(self._feat_stride[0])))
+      #
       if cfg.USE_E2E_TF:
         anchors, anchor_length = generate_anchors_pre_tf(
           height,
@@ -248,13 +263,16 @@ class Network(object):
 
     net_conv = self._image_to_head(is_training)
     with tf.variable_scope(self._scope, self._scope):
+      # variable_scope建立一个变量的作用域
       # build the anchors for the image
       self._anchor_component()
+      # 建立anchor
       # region proposal network
       rois = self._region_proposal(net_conv, is_training, initializer)
       # region of interest pooling
       if cfg.POOLING_MODE == 'crop':
         pool5 = self._crop_pool_layer(net_conv, rois, "pool5")
+        # 对生成的rois进行roi池化
       else:
         raise NotImplementedError
 
@@ -328,23 +346,41 @@ class Network(object):
     return loss
 
   def _region_proposal(self, net_conv, is_training, initializer):
+    '''
+
+    :param net_conv:
+    :param is_training:
+    :param initializer:
+    :return:
+    '''
     rpn = slim.conv2d(net_conv, cfg.RPN_CHANNELS, [3, 3], trainable=is_training, weights_initializer=initializer,
                         scope="rpn_conv/3x3")
+    # 第一层：3*3的卷积层,shape=(1,?,?,512)
     self._act_summaries.append(rpn)
     rpn_cls_score = slim.conv2d(rpn, self._num_anchors * 2, [1, 1], trainable=is_training,
                                 weights_initializer=initializer,
                                 padding='VALID', activation_fn=None, scope='rpn_cls_score')
+    # shape=(1,?,?,18),9个anchor，一个anchor两个分数
     # change it so that the score has 2 as its channel size
     rpn_cls_score_reshape = self._reshape_layer(rpn_cls_score, 2, 'rpn_cls_score_reshape')
+    # shape=(1,?,?,2)
     rpn_cls_prob_reshape = self._softmax_layer(rpn_cls_score_reshape, "rpn_cls_prob_reshape")
+    # shape=(1,?,?,2)softmax，用于判断bbox中是否含有物体
     rpn_cls_pred = tf.argmax(tf.reshape(rpn_cls_score_reshape, [-1, 2]), axis=1, name="rpn_cls_pred")
+    # 返回最大的值所在的下标，是/否含有物体
     rpn_cls_prob = self._reshape_layer(rpn_cls_prob_reshape, self._num_anchors * 2, "rpn_cls_prob")
+    # shape=(1,?,?,36)
+    #####################################################################################
+    # 预测bbox的坐标，(height，width，9*4)
     rpn_bbox_pred = slim.conv2d(rpn, self._num_anchors * 4, [1, 1], trainable=is_training,
                                 weights_initializer=initializer,
                                 padding='VALID', activation_fn=None, scope='rpn_bbox_pred')
     if is_training:
       rois, roi_scores = self._proposal_layer(rpn_cls_prob, rpn_bbox_pred, "rois")
+      # rois是bbox的角点坐标，size=(?,5),roi_scores是bbox对应的分数
+      # 处理anchor，裁剪，nms，筛选
       rpn_labels = self._anchor_target_layer(rpn_cls_score, "anchor")
+      # # rpn_labels是标签值，1,0,-1
       # Try to have a deterministic order for the computing graph, for reproducibility
       with tf.control_dependencies([rpn_labels]):
         rois, _ = self._proposal_target_layer(rois, roi_scores, "rpn_rois")
@@ -406,7 +442,7 @@ class Network(object):
     # none表示尺寸不定，输入的图片
     # tf.placeholder(dtype,shape=None,name=None)
     self._im_info = tf.placeholder(tf.float32, shape=[3])
-    #
+    # 图片的width,height,im_scales(图片被压缩到600最小边长尺寸时被压缩的 比例)
     self._gt_boxes = tf.placeholder(tf.float32, shape=[None, 5])
     self._tag = tag
 

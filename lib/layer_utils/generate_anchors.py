@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 # --------------------------------------------------------
 # Faster R-CNN
 # Copyright (c) 2015 Microsoft
@@ -46,15 +48,19 @@ def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
   """
 
   base_anchor = np.array([1, 1, base_size, base_size]) - 1
+  # [0 0 15 15]
   ratio_anchors = _ratio_enum(base_anchor, ratios)
+  # 根据base anchors得到三组不同尺寸的anchors(3,4)
   anchors = np.vstack([_scale_enum(ratio_anchors[i, :], scales)
                        for i in range(ratio_anchors.shape[0])])
+  # anchors(9,4)
   return anchors
 
 
 def _whctrs(anchor):
   """
   Return width, height, x center, and y center for an anchor (window).
+  返回anchor的width, height, x center, and y center
   """
 
   w = anchor[2] - anchor[0] + 1
@@ -82,14 +88,21 @@ def _mkanchors(ws, hs, x_ctr, y_ctr):
 def _ratio_enum(anchor, ratios):
   """
   Enumerate a set of anchors for each aspect ratio wrt an anchor.
+  为每个纵横比枚举一组锚点，与锚点相关。
   """
+  # 输入的anchor是原始anchor的对角线两个顶点
+  # 输出的anchors是
 
   w, h, x_ctr, y_ctr = _whctrs(anchor)
+  # 得到anchor的width, height, x center, and y center
   size = w * h
-  size_ratios = size / ratios
-  ws = np.round(np.sqrt(size_ratios))
+  size_ratios = size / ratios# 得到的应该是w的平方或者h的平方
+  # ratios=[0.5 1 2]纵横比，size不变
+  ws = np.round(np.sqrt(size_ratios))# 四舍五入
   hs = np.round(ws * ratios)
   anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
+  # 根据ws, hs, x_ctr, y_ctr得到anchors四个顶点坐标
+  #
   return anchors
 
 

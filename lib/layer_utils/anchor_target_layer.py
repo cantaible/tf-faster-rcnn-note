@@ -1,3 +1,7 @@
+# -*- coding:utf-8 -*-
+
+
+
 # --------------------------------------------------------
 # Faster R-CNN
 # Copyright (c) 2015 Microsoft
@@ -19,6 +23,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
   """Same as the anchor target layer in original Fast/er RCNN """
   A = num_anchors
   total_anchors = all_anchors.shape[0]
+  # anchor的总数
   K = total_anchors / num_anchors
 
   # allow boxes to sit over the edge by a small amount
@@ -28,6 +33,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
   height, width = rpn_cls_score.shape[1:3]
 
   # only keep anchors inside the image
+  # 筛选出all_anchors中所有满足条件的anchor的索引
   inds_inside = np.where(
     (all_anchors[:, 0] >= -_allowed_border) &
     (all_anchors[:, 1] >= -_allowed_border) &
@@ -40,44 +46,63 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
 
   # label: 1 is positive, 0 is negative, -1 is dont care
   labels = np.empty((len(inds_inside),), dtype=np.float32)
+  # 建立一个随机生成的数组，维度指定
   labels.fill(-1)
+  # labels中的内容用-1初始化（1：前景，0：背景，-1：忽略）
 
   # overlaps between the anchors and the gt boxes
   # overlaps (ex, gt)
   overlaps = bbox_overlaps(
     np.ascontiguousarray(anchors, dtype=np.float),
     np.ascontiguousarray(gt_boxes, dtype=np.float))
+  # 计算rpn得到的anchor和groundtrue_box的重叠面积shape=(len(anchors),len(gx_boxes))
+  # overlaps[i][j]代表了第i个anchor与第j个gtbox的重叠面积
   argmax_overlaps = overlaps.argmax(axis=1)
+  # 返回每个anchor对应的最匹配的gt_box的编号
+  # axis=1：找每一行的最大值，拿出第1+1维度进行比较
   max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
+  # 根据索引得到值
+  # max_overlap是满足要求的anchor的分数
   gt_argmax_overlaps = overlaps.argmax(axis=0)
+  # 取每一列的最大值，返回与每个gt_box最匹配的anchor
   gt_max_overlaps = overlaps[gt_argmax_overlaps,
                              np.arange(overlaps.shape[1])]
+  # 返回与每个gt_box最匹配的anchor
   gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
+  # np.where输出overlaps中满足条件的元素的位置索引。[0]是第0维坐标
+  # ！！特么返回的是gt_max_overlaps按照降序排列后在overlaps中位置的第多少行
+  # 返回每个gt_boxes对应的overlap最大的anchor的序号，降序排列
 
   if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
     # assign bg labels first so that positive labels can clobber them
     # first set the negatives
     labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+      # 记录anchor与gt_box的ioU值小于RPN_NEGATIVE_OVERLAP的为负样本
 
   # fg label: for each gt, anchor with highest overlap
   labels[gt_argmax_overlaps] = 1
+  # 记录anchor与gt_box的ioU值最大的为正样本
 
   # fg label: above threshold IOU
   labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+  # 记录anchor与gt_box的ioU值大于RPN_POSITIVE_OVERLAP的为正样本
 
   if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
     # assign bg labels last so that negative labels can clobber positives
     labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
 
   # subsample positive labels if we have too many
-  num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
+  # 如果正样本过多，就进行采样。采样比例由RPN_FG_FRACTION和RPN_BATCHSIZE控制
+  num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)# 0.5*256
   fg_inds = np.where(labels == 1)[0]
   if len(fg_inds) > num_fg:
     disable_inds = npr.choice(
       fg_inds, size=(len(fg_inds) - num_fg), replace=False)
     labels[disable_inds] = -1
+      # numpy.random.choice  参数size表示输出的shape，
 
   # subsample negative labels if we have too many
+  # 如果负样本过多，就进行采样。采样比例由
   num_bg = cfg.TRAIN.RPN_BATCHSIZE - np.sum(labels == 1)
   bg_inds = np.where(labels == 0)[0]
   if len(bg_inds) > num_bg:
@@ -87,10 +112,14 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
 
   bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
   bbox_targets = _compute_targets(anchors, gt_boxes[argmax_overlaps, :])
-
+  # anchor是所有满足条件的anchor，argmax_overlaps是每个anchor对应的最匹配的gt_box的编号
+  # gt_boxes是ground truth边界框
+  # gt_boxes[argmax_overlaps, :]是每个anchor对应ioU最大的gt_boxes的边界框,
+  # _compute_targets返回gt框和anchor框相差的dxdydhdw
   bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
   # only the positive ones have regression targets
   bbox_inside_weights[labels == 1, :] = np.array(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
+  # RPN_BBOX_INSIDE_WEIGHTS=[1,1,1,1]
 
   bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
   if cfg.TRAIN.RPN_POSITIVE_WEIGHT < 0:
@@ -105,6 +134,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
                         np.sum(labels == 1))
     negative_weights = ((1.0 - cfg.TRAIN.RPN_POSITIVE_WEIGHT) /
                         np.sum(labels == 0))
+
+  # 计算正样本/负样本和anchor总数的比值
   bbox_outside_weights[labels == 1, :] = positive_weights
   bbox_outside_weights[labels == 0, :] = negative_weights
 
@@ -135,6 +166,13 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     .reshape((1, height, width, A * 4))
 
   rpn_bbox_outside_weights = bbox_outside_weights
+  # rpn_bbox_inside_weights用于把是object的box过滤出来，
+  # 因为并不是所有的anchors都是有object的。
+  # rpn_bbox_inside_weights用于设置标记为1的box和标记为0的box的权值比率
+
+  # rpn_bbox_targets是计算出来的dxdydhdw
+
+  # rpn_labels是标签值，1,0,-1
   return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
 
 
